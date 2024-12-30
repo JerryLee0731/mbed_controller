@@ -41,15 +41,15 @@ PIDController pid_vel(kp_vel, ki_vel, kd_vel);
 //AnalogIn a2(A2);
 
 // uart to PC
-char read_buf[32];
-char write_buf[256];
+char read_buf[512]; // must be larger tan length of string in the message !!!
+char write_buf[512];
+
+// pc <-> stm32
+BufferedSerial serial_port(USBTX, USBRX, 115200);  // (tx,rx,baudrate)
 
 // main() runs in its own thread in the OS
 int main()
 {
-    // pc <-> stm32
-    BufferedSerial serial_port(USBTX, USBRX, 115200);  // (tx,rx,baudrate)
-
     // 初始化motor pwm週期 10000Hz
     pwm_ang_f1.period(1.0 / 10000);
     pwm_ang_f2.period(1.0 / 10000);
@@ -125,9 +125,10 @@ int main()
         motorControl_vel(target_vel_f, vel_f, pid_vel, pwm_vel_f1, pwm_vel_f2);
         // motor end
         // uart to pc
+        
         if (serial_port.writable()) {
             memset(write_buf, 0, sizeof(write_buf)); //清空緩存區
-            std::sprintf(write_buf, "%d %d %d %d %d %d %d %d\r\n",
+            std::snprintf(write_buf, sizeof(write_buf), "%d %d %d %d %d %d %d %d\r\n",
                 int(target_ang_f*1e3), 
                 int(target_vel_f*1e3), 
                 int(target_ang_r*1e3), 
@@ -141,6 +142,8 @@ int main()
             // 使用 strlen(write_buf) 确定要发送的字节数
             serial_port.write(write_buf, strlen(write_buf));
         }
+        
+        //send_doubles_as_string(10.00, 20.00, 30.00);
         
         ThisThread::sleep_for(10ms);
     }
